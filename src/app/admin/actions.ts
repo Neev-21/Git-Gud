@@ -165,3 +165,47 @@ export async function deleteBadge(badgeId: string) {
   if (error) throw new Error(error.message)
   revalidatePath('/admin')
 }
+
+// ─── Raid Management ───
+export async function createRaid(formData: FormData) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase.from('hackathons').insert({
+    title: formData.get('title') as string,
+    description: (formData.get('description') as string) || null,
+    start_date: (formData.get('start_date') as string) || null,
+    end_date: (formData.get('end_date') as string) || null,
+    exp_reward: parseInt(formData.get('exp_reward') as string, 10) || 0,
+    banner_url: (formData.get('banner_url') as string) || null,
+    max_teams: formData.get('max_teams') ? parseInt(formData.get('max_teams') as string, 10) : null,
+    is_active: true,
+  })
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+  revalidatePath('/raids')
+}
+
+export async function deleteRaid(raidId: string) {
+  const { supabase } = await requireAdmin()
+
+  await supabase.from('hackathon_submissions').delete().eq('hackathon_id', raidId)
+  const { error } = await supabase.from('hackathons').delete().eq('id', raidId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+  revalidatePath('/raids')
+}
+
+export async function scoreRaidSubmission(submissionId: string, score: number, reviewNotes: string) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase
+    .from('hackathon_submissions')
+    .update({ score, review_notes: reviewNotes || null })
+    .eq('id', submissionId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+  revalidatePath('/raids')
+}

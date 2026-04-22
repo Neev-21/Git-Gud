@@ -40,12 +40,19 @@ export default async function AdminPage() {
     .select('id, username, avatar_url, is_admin, level, exp, class')
     .order('username')
 
+  // Fetch raids with submissions
+  const { data: raids } = await supabase
+    .from('hackathons')
+    .select('*, hackathon_submissions(*, guilds:guild_id(name, banner_url))')
+    .order('created_at', { ascending: false })
+
   return (
     <AdminDashboard
       quests={quests || []}
       submissions={submissions || []}
       badges={badges || []}
       users={users || []}
+      raids={raids || []}
     />
   )
 }

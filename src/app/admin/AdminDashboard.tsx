@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge } from './actions'
+import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge, createRaid, deleteRaid, scoreRaidSubmission } from './actions'
 
 type Quest = {
   id: string
@@ -54,18 +54,40 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: 'bg-red-500/10 text-red-400 border-red-500/30',
 }
 
-type Tab = 'quests' | 'submissions' | 'badges' | 'users'
+type Tab = 'quests' | 'submissions' | 'badges' | 'raids' | 'users'
+
+type RaidData = {
+  id: string
+  title: string
+  description: string | null
+  start_date: string | null
+  end_date: string | null
+  is_active: boolean
+  exp_reward: number
+  banner_url: string | null
+  max_teams: number | null
+  hackathon_submissions: {
+    id: string
+    guild_id: string
+    github_url: string
+    score: number
+    review_notes: string | null
+    guilds: { name: string; banner_url: string | null } | null
+  }[]
+}
 
 export default function AdminDashboard({
   quests,
   submissions,
   badges,
   users,
+  raids,
 }: {
   quests: Quest[]
   submissions: Submission[]
   badges: Badge[]
   users: UserProfile[]
+  raids: RaidData[]
 }) {
   const [activeTab, setActiveTab] = useState<Tab>('quests')
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -77,6 +99,7 @@ export default function AdminDashboard({
     { key: 'quests', label: 'Quests', count: quests.length },
     { key: 'submissions', label: 'Submissions', count: submissions.filter(s => s.status === 'submitted').length },
     { key: 'badges', label: 'Badges', count: badges.length },
+    { key: 'raids', label: 'Raids', count: raids.length },
     { key: 'users', label: 'Users', count: users.length },
   ]
 
@@ -465,6 +488,126 @@ export default function AdminDashboard({
                     >
                       Delete
                     </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── RAIDS TAB ─── */}
+        {activeTab === 'raids' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold font-mono">Raid Management</h2>
+              <button
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all hover:scale-105 shadow-[0_0_15px_rgba(239,68,68,0.3)] font-mono text-sm"
+              >
+                {showCreateForm ? '✕ Cancel' : '+ New Raid'}
+              </button>
+            </div>
+
+            {showCreateForm && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setIsLoading(true)
+                  const formData = new FormData(e.currentTarget)
+                  await createRaid(formData)
+                  setShowCreateForm(false)
+                  setIsLoading(false)
+                }}
+                className="bg-slate-800/60 backdrop-blur-sm border border-red-500/30 rounded-2xl p-8 space-y-6"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Title</label>
+                    <input name="title" required className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none transition-colors font-mono" placeholder="The Great Code War" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">EXP Reward</label>
+                    <input name="exp_reward" type="number" defaultValue={500} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none transition-colors font-mono" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Start Date</label>
+                    <input name="start_date" type="datetime-local" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none transition-colors font-mono" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">End Date</label>
+                    <input name="end_date" type="datetime-local" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none transition-colors font-mono" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Max Teams (optional)</label>
+                    <input name="max_teams" type="number" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none transition-colors font-mono" placeholder="Leave empty for unlimited" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Description</label>
+                    <textarea name="description" rows={3} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-red-500 focus:outline-none transition-colors font-mono resize-none" placeholder="Describe the raid mission..." />
+                  </div>
+                </div>
+                <button type="submit" disabled={isLoading} className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all font-mono text-sm uppercase tracking-wider">
+                  {isLoading ? 'Creating...' : '⚔️ Launch Raid'}
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              {raids.length === 0 ? (
+                <div className="text-center py-16 text-slate-500 font-mono border-2 border-dashed border-slate-700 rounded-2xl">No raids yet.</div>
+              ) : (
+                raids.map(r => (
+                  <div key={r.id} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold font-mono text-white text-lg">{r.title}</h3>
+                        <p className="text-xs text-slate-500 font-mono">
+                          ⚡ {r.exp_reward} EXP • 🏰 {r.hackathon_submissions.length}{r.max_teams ? `/${r.max_teams}` : ''} teams
+                          {r.start_date && ` • ${new Date(r.start_date).toLocaleDateString()}`}
+                          {r.end_date && ` → ${new Date(r.end_date).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Delete raid "${r.title}"?`)) {
+                            setIsLoading(true)
+                            await deleteRaid(r.id)
+                            setIsLoading(false)
+                          }
+                        }}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-xs font-mono font-bold border border-red-800 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    {r.hackathon_submissions.length > 0 && (
+                      <div className="space-y-2 border-t border-slate-700 pt-4">
+                        <p className="text-sm font-mono font-bold text-slate-400">Submissions:</p>
+                        {r.hackathon_submissions.map(s => (
+                          <div key={s.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-700">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-mono font-bold text-white text-sm">{s.guilds?.name || 'Unknown Guild'}</p>
+                              <a href={s.github_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline font-mono truncate block">{s.github_url}</a>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              defaultValue={s.score}
+                              className="w-20 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-center font-mono text-sm focus:border-amber-500 focus:outline-none"
+                              onBlur={async (e) => {
+                                const newScore = parseInt(e.target.value, 10)
+                                if (!isNaN(newScore) && newScore !== s.score) {
+                                  await scoreRaidSubmission(s.id, newScore, s.review_notes || '')
+                                }
+                              }}
+                            />
+                            <span className="text-xs text-slate-500 font-mono">pts</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))
               )}

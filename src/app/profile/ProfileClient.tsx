@@ -80,6 +80,16 @@ export default function ProfileClient({ user, badges = [], guild = null }: { use
               🏰 Guilds
             </a>
             <a
+              href="/raids"
+              className={`px-4 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
+                isResumeView
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20'
+              }`}
+            >
+              🔥 Raids
+            </a>
+            <a
               href="/leaderboard"
               className={`px-4 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
                 isResumeView
