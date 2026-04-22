@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Briefcase, Gamepad2, Shield, Sword, Trophy, Star, LogOut } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
+import { calculateLevelFromExp } from '@/utils/expEngine'
 
 type UserData = {
   id: string
@@ -26,8 +27,11 @@ export default function ProfileClient({ user }: { user: UserData }) {
     router.push('/login')
   }
 
-  const expToNextLevel = user.level * 1000
-  const expProgress = Math.min((user.exp / expToNextLevel) * 100, 100)
+  // Use the new escalating EXP curve
+  const { expToNextLevel, currentLevelBaseExp } = calculateLevelFromExp(user.exp)
+  const totalExpRequiredForNextLevel = currentLevelBaseExp + expToNextLevel
+  const progressInCurrentLevel = user.exp - currentLevelBaseExp
+  const expProgress = Math.min((progressInCurrentLevel / expToNextLevel) * 100, 100)
 
   return (
     <div className={`min-h-screen transition-colors duration-500 ${isResumeView ? 'bg-slate-50 text-slate-900 font-sans' : 'bg-slate-900 text-slate-100 font-sans'}`}>
@@ -141,7 +145,7 @@ export default function ProfileClient({ user }: { user: UserData }) {
                 <div className="space-y-3 pt-2">
                   <div className="flex justify-between text-sm md:text-base font-mono font-bold text-slate-400">
                     <span className="tracking-widest">EXPERIENCE</span>
-                    <span className="text-white">{user.exp.toLocaleString()} <span className="text-slate-500">/ {expToNextLevel.toLocaleString()}</span></span>
+                    <span className="text-white">{user.exp.toLocaleString()} <span className="text-slate-500">/ {totalExpRequiredForNextLevel.toLocaleString()}</span></span>
                   </div>
                   <div className="w-full h-5 bg-slate-900 rounded-full overflow-hidden border-2 border-slate-700 p-0.5">
                     <div 
