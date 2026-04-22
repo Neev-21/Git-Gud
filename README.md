@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
+  <h1>⚔️ Git Gud</h1>
+  <p><strong>Turn software development into a multiplayer RPG and generate a verified professional resume.</strong></p>
+</div>
 
-## Getting Started
+---
 
-First, run the development server:
+Git Gud is a gamified web platform that transforms your everyday coding activities into an epic adventure. Level up your developer profile, complete quests, join guilds, and conquer hackathons (Raid Bosses), all while automatically building a verified, professional resume from your achievements.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **🛡️ Choose Your Class**: Start your journey as a Front-End Sorcerer, Back-End Berserker, or other specialized classes.
+- **📈 Passive EXP Engine**: Earn EXP automatically by committing code, opening PRs, and getting them merged on GitHub.
+- **📜 Quest Tavern**: Take on Solo Bounties created by admins. Submit your work and earn EXP and exclusive Badges.
+- **🏰 Guilds & Hackathons (Raid Bosses)**: Team up with 2-4 players to form a Guild. Compete in time-boxed Hackathons for massive rewards, exclusive banners, and leaderboard glory.
+- **💼 Auto-Resume Generation**: Toggle your Gamer Profile into "Professional Mode" to instantly map your RPG achievements to a clean, print-ready professional resume.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Getting Started
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prerequisites
 
-## Learn More
+- **Node.js** (v18 or newer)
+- **Package Manager**: npm, pnpm, or yarn
+- **Git**
+- **GitHub Account** (for OAuth integration)
+- **Supabase Account** (for PostgreSQL database and Auth)
 
-To learn more about Next.js, take a look at the following resources:
+### Installation & Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/git-gud.git
+   cd git-gud
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. **Install dependencies:**
+   ```bash
+   npm install
+   # or yarn install / pnpm install
+   ```
 
-## Deploy on Vercel
+3. **Configure Environment Variables:**
+   Copy the example environment file and fill in your Supabase and GitHub details.
+   ```bash
+   cp .env.example .env.local
+   ```
+   *Note: Ensure your Supabase project is set up with the required database schema (Users, Quests, Submissions, Guilds, etc.) and GitHub OAuth is enabled.*
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. **Run the development server:**
+   ```bash
+   npm run dev
+   # or yarn dev / pnpm dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. **Open the app:**
+   Navigate to [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Backend & Database**: [Supabase](https://supabase.com/) (PostgreSQL, Auth, Edge Functions)
+
+## 🗺️ Roadmap
+
+- **Phase 1**: Project Setup & Database Foundation (Supabase Schema, RLS)
+- **Phase 2**: GitHub Authentication & Gamer Profile UI
+- **Phase 3**: Passive EXP Engine (GitHub API Polling & Crons)
+- **Phase 4**: Quest Tavern (Solo Bounties & Admin Validation)
+- **Phase 5**: Guild System & Hackathon Raid Bosses
+- **Phase 6**: Professional Resume Export & UI Polish
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Level up by submitting a pull request to help us build the ultimate developer RPG.
+
+## 📄 License
+
+This project is licensed under the MIT License.
