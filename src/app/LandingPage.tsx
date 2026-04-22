@@ -58,11 +58,20 @@ export default function LandingPage({
   activity: Activity[]
 }) {
   const handleLogin = async () => {
-    const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
+      if (error) {
+        console.error("Login error:", error.message)
+        alert("Failed to login: " + error.message)
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err)
+      alert("An unexpected error occurred during login.")
+    }
   }
 
   return (
