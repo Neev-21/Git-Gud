@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge, createRaid, deleteRaid, scoreRaidSubmission } from './actions'
+import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge, createRaid, deleteRaid, scoreRaidSubmission, finalizeRaid } from './actions'
 
 type Quest = {
   id: string
@@ -63,6 +63,7 @@ type RaidData = {
   start_date: string | null
   end_date: string | null
   is_active: boolean
+  is_finalized: boolean
   exp_reward: number
   banner_url: string | null
   max_teams: number | null
@@ -72,6 +73,7 @@ type RaidData = {
     github_url: string
     score: number
     review_notes: string | null
+    placement: number | null
     guilds: { name: string; banner_url: string | null } | null
   }[]
 }
@@ -560,52 +562,97 @@ export default function AdminDashboard({
                   <div key={r.id} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-bold font-mono text-white text-lg">{r.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold font-mono text-white text-lg">{r.title}</h3>
+                          {r.is_finalized && (
+                            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">✓ Finalized</span>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500 font-mono">
                           ⚡ {r.exp_reward} EXP • 🏰 {r.hackathon_submissions.length}{r.max_teams ? `/${r.max_teams}` : ''} teams
                           {r.start_date && ` • ${new Date(r.start_date).toLocaleDateString()}`}
                           {r.end_date && ` → ${new Date(r.end_date).toLocaleDateString()}`}
                         </p>
                       </div>
-                      <button
-                        onClick={async () => {
-                          if (confirm(`Delete raid "${r.title}"?`)) {
-                            setIsLoading(true)
-                            await deleteRaid(r.id)
-                            setIsLoading(false)
-                          }
-                        }}
-                        disabled={isLoading}
-                        className="px-4 py-2 text-xs font-mono font-bold border border-red-800 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {/* Finalize Button — only if ended, not finalized, has submissions */}
+                        {!r.is_finalized && r.end_date && new Date(r.end_date) < new Date() && r.hackathon_submissions.length > 0 && (
+                          <button
+                            onClick={async () => {
+                              const sorted = [...r.hackathon_submissions].sort((a, b) => b.score - a.score)
+                              const preview = sorted.slice(0, 3).map((s, i) => {
+                                const mult = [3, 2, 1.5][i]
+                                const medal = ['🥇', '🥈', '🥉'][i]
+                                return `${medal} ${s.guilds?.name || 'Unknown'}: ${s.score}pts → ${Math.floor(r.exp_reward * mult)} EXP`
+                              }).join('\n')
+                              const rest = sorted.length > 3 ? `\n+ ${sorted.length - 3} more guilds: ${r.exp_reward} EXP each` : ''
+                              if (confirm(`Finalize "${r.title}"?\n\n${preview}${rest}\n\nEXP will be distributed to ALL guild members. This cannot be undone.`)) {
+                                setIsLoading(true)
+                                await finalizeRaid(r.id)
+                                setIsLoading(false)
+                              }
+                            }}
+                            disabled={isLoading}
+                            className="px-4 py-2 text-xs font-mono font-bold border border-green-600 text-green-400 rounded-lg hover:bg-green-900/30 transition-colors"
+                          >
+                            🏆 Finalize
+                          </button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Delete raid "${r.title}"?`)) {
+                              setIsLoading(true)
+                              await deleteRaid(r.id)
+                              setIsLoading(false)
+                            }
+                          }}
+                          disabled={isLoading || r.is_finalized}
+                          className="px-4 py-2 text-xs font-mono font-bold border border-red-800 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors disabled:opacity-30"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                     {r.hackathon_submissions.length > 0 && (
                       <div className="space-y-2 border-t border-slate-700 pt-4">
-                        <p className="text-sm font-mono font-bold text-slate-400">Submissions:</p>
-                        {r.hackathon_submissions.map(s => (
-                          <div key={s.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-700">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-mono font-bold text-white text-sm">{s.guilds?.name || 'Unknown Guild'}</p>
-                              <a href={s.github_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline font-mono truncate block">{s.github_url}</a>
+                        <p className="text-sm font-mono font-bold text-slate-400">{r.is_finalized ? 'Results:' : 'Submissions:'}</p>
+                        {[...r.hackathon_submissions].sort((a, b) => b.score - a.score).map((s, i) => {
+                          const medal = r.is_finalized && s.placement ? ['', '🥇', '🥈', '🥉'][s.placement] : ''
+                          return (
+                            <div key={s.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-700">
+                              {medal && <span className="text-lg shrink-0">{medal}</span>}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-mono font-bold text-white text-sm">{s.guilds?.name || 'Unknown Guild'}</p>
+                                <a href={s.github_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline font-mono truncate block">{s.github_url}</a>
+                              </div>
+                              {r.is_finalized ? (
+                                <div className="text-right">
+                                  <span className="font-mono font-bold text-amber-400 text-sm">{s.score} pts</span>
+                                  <p className="text-xs text-slate-500 font-mono">
+                                    {s.placement ? `${[0, 3, 2, 1.5][s.placement]}× = ${Math.floor(r.exp_reward * [0, 3, 2, 1.5][s.placement])} EXP` : `${r.exp_reward} EXP`}
+                                  </p>
+                                </div>
+                              ) : (
+                                <>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    defaultValue={s.score}
+                                    className="w-20 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-center font-mono text-sm focus:border-amber-500 focus:outline-none"
+                                    onBlur={async (e) => {
+                                      const newScore = parseInt(e.target.value, 10)
+                                      if (!isNaN(newScore) && newScore !== s.score) {
+                                        await scoreRaidSubmission(s.id, newScore, s.review_notes || '')
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-xs text-slate-500 font-mono">pts</span>
+                                </>
+                              )}
                             </div>
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              defaultValue={s.score}
-                              className="w-20 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-center font-mono text-sm focus:border-amber-500 focus:outline-none"
-                              onBlur={async (e) => {
-                                const newScore = parseInt(e.target.value, 10)
-                                if (!isNaN(newScore) && newScore !== s.score) {
-                                  await scoreRaidSubmission(s.id, newScore, s.review_notes || '')
-                                }
-                              }}
-                            />
-                            <span className="text-xs text-slate-500 font-mono">pts</span>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </div>

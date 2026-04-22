@@ -32,6 +32,7 @@ export default async function RaidDetailPage({ params }: { params: Promise<{ id:
     score: s.score || 0,
     review_notes: s.review_notes,
     submitted_at: s.submitted_at,
+    placement: s.placement || null,
   }))
 
   // Get user's guild membership
@@ -44,7 +45,8 @@ export default async function RaidDetailPage({ params }: { params: Promise<{ id:
   const now = new Date()
   const status = !raid.is_active ? 'inactive'
     : (raid.start_date && new Date(raid.start_date) > now) ? 'upcoming'
-    : (raid.end_date && new Date(raid.end_date) < now) ? 'ended'
+    : raid.is_finalized ? 'finalized'
+    : (raid.end_date && new Date(raid.end_date) < now) ? 'judging'
     : 'active'
 
   const hasSubmitted = membership
@@ -68,6 +70,8 @@ export default async function RaidDetailPage({ params }: { params: Promise<{ id:
       isLeader={membership?.role === 'leader'}
       isInGuild={!!membership}
       hasSubmitted={hasSubmitted}
+      isFinalized={raid.is_finalized || false}
+      userGuildId={membership?.guild_id || null}
     />
   )
 }

@@ -11,13 +11,14 @@ type Raid = {
   banner_url: string | null
   max_teams: number | null
   team_count: number
-  status: 'active' | 'upcoming' | 'ended' | 'inactive'
+  status: 'active' | 'upcoming' | 'judging' | 'finalized' | 'inactive'
 }
 
 const statusConfig: Record<string, { label: string; color: string; glow: string }> = {
   active: { label: '🔥 ACTIVE', color: 'text-red-400 bg-red-500/10 border-red-500/30', glow: 'border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.15)]' },
   upcoming: { label: '⏳ UPCOMING', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30', glow: 'border-amber-500/30' },
-  ended: { label: '📜 ENDED', color: 'text-slate-400 bg-slate-500/10 border-slate-500/30', glow: 'border-slate-700' },
+  judging: { label: '⚖️ JUDGING', color: 'text-orange-400 bg-orange-500/10 border-orange-500/30', glow: 'border-orange-500/30' },
+  finalized: { label: '🏆 FINALIZED', color: 'text-green-400 bg-green-500/10 border-green-500/30', glow: 'border-green-500/30' },
   inactive: { label: 'DRAFT', color: 'text-slate-500 bg-slate-500/10 border-slate-600/30', glow: 'border-slate-700' },
 }
 
@@ -29,7 +30,8 @@ function formatDate(dateStr: string | null) {
 export default function RaidBoard({ raids }: { raids: Raid[] }) {
   const active = raids.filter(r => r.status === 'active')
   const upcoming = raids.filter(r => r.status === 'upcoming')
-  const ended = raids.filter(r => r.status === 'ended')
+  const judging = raids.filter(r => r.status === 'judging')
+  const finalized = raids.filter(r => r.status === 'finalized')
 
   const renderRaid = (raid: Raid) => {
     const cfg = statusConfig[raid.status]
@@ -97,10 +99,17 @@ export default function RaidBoard({ raids }: { raids: Raid[] }) {
           </section>
         )}
 
-        {ended.length > 0 && (
+        {judging.length > 0 && (
           <section className="space-y-4">
-            <h2 className="text-xl font-bold font-mono text-slate-400 flex items-center gap-2">📜 Past Raids</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{ended.map(renderRaid)}</div>
+            <h2 className="text-xl font-bold font-mono text-orange-400 flex items-center gap-2">⚖️ Judging</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{judging.map(renderRaid)}</div>
+          </section>
+        )}
+
+        {finalized.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold font-mono text-green-400 flex items-center gap-2">🏆 Completed Raids</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{finalized.map(renderRaid)}</div>
           </section>
         )}
 

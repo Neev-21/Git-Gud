@@ -24,9 +24,12 @@ type Submission = {
   score: number
   review_notes: string | null
   submitted_at: string | null
+  placement: number | null
 }
 
 const rankMedal: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' }
+const placementMultiplier: Record<number, number> = { 1: 3, 2: 2, 3: 1.5 }
+const placementLabel: Record<number, string> = { 1: '1st Place', 2: '2nd Place', 3: '3rd Place' }
 
 function useCountdown(targetDate: string | null) {
   const [timeLeft, setTimeLeft] = useState('')
@@ -54,12 +57,16 @@ export default function RaidDetail({
   isLeader,
   isInGuild,
   hasSubmitted,
+  isFinalized,
+  userGuildId,
 }: {
   raid: RaidInfo
   submissions: Submission[]
   isLeader: boolean
   isInGuild: boolean
   hasSubmitted: boolean
+  isFinalized: boolean
+  userGuildId: string | null
 }) {
   const [showSubmitForm, setShowSubmitForm] = useState(false)
   const [githubUrl, setGithubUrl] = useState('')
@@ -68,6 +75,12 @@ export default function RaidDetail({
 
   const countdown = useCountdown(raid.status === 'active' ? raid.end_date : raid.status === 'upcoming' ? raid.start_date : null)
   const canSubmit = raid.status === 'active' && isLeader && !hasSubmitted
+
+  // Calculate what EXP the user's guild received
+  const userGuildSubmission = userGuildId ? submissions.find(s => s.guild_id === userGuildId) : null
+  const userGuildPlacement = userGuildSubmission?.placement
+  const userGuildExpMultiplier = userGuildPlacement ? placementMultiplier[userGuildPlacement] : 1
+  const userGuildExpAwarded = isFinalized && userGuildSubmission ? Math.floor(raid.exp_reward * userGuildExpMultiplier) : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,6 +93,17 @@ export default function RaidDetail({
       setGithubUrl('')
     }
     setIsLoading(false)
+  }
+
+  const statusBadge = () => {
+    const styles: Record<string, { label: string; color: string }> = {
+      active: { label: '🔥 ACTIVE', color: 'text-red-400 bg-red-500/10 border-red-500/30' },
+      upcoming: { label: '⏳ UPCOMING', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
+      judging: { label: '⚖️ JUDGING', color: 'text-orange-400 bg-orange-500/10 border-orange-500/30' },
+      finalized: { label: '🏆 FINALIZED', color: 'text-green-400 bg-green-500/10 border-green-500/30' },
+    }
+    const s = styles[raid.status] || styles.upcoming
+    return <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border ${s.color}`}>{s.label}</span>
   }
 
   return (
@@ -108,13 +132,7 @@ export default function RaidDetail({
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 p-8">
             <div className="flex items-center gap-3 mb-3">
-              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded-full border ${
-                raid.status === 'active' ? 'text-red-400 bg-red-500/10 border-red-500/30' :
-                raid.status === 'upcoming' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
-                'text-slate-400 bg-slate-500/10 border-slate-500/30'
-              }`}>
-                {raid.status === 'active' ? '🔥 ACTIVE' : raid.status === 'upcoming' ? '⏳ UPCOMING' : '📜 ENDED'}
-              </span>
+              {statusBadge()}
               {countdown && (
                 <span className="text-sm font-mono font-bold text-red-300 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full">
                   {raid.status === 'active' ? `⏱ ${countdown} left` : `Starts in ${countdown}`}
@@ -129,8 +147,8 @@ export default function RaidDetail({
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: 'Teams', value: `${submissions.length}${raid.max_teams ? `/${raid.max_teams}` : ''}`, icon: '🏰' },
-            { label: 'EXP Reward', value: raid.exp_reward.toLocaleString(), icon: '⚡' },
-            { label: raid.status === 'ended' ? 'Ended' : 'Ends', value: raid.end_date ? new Date(raid.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—', icon: '📅' },
+            { label: 'Base EXP', value: raid.exp_reward.toLocaleString(), icon: '⚡' },
+            { label: raid.status === 'finalized' || raid.status === 'judging' ? 'Ended' : 'Ends', value: raid.end_date ? new Date(raid.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—', icon: '📅' },
           ].map(s => (
             <div key={s.label} className="bg-slate-800/50 border border-slate-700 rounded-2xl p-5 text-center">
               <p className="text-2xl mb-1">{s.icon}</p>
@@ -140,11 +158,53 @@ export default function RaidDetail({
           ))}
         </div>
 
+        {/* EXP Tier Info */}
+        {(raid.status === 'active' || raid.status === 'judging' || raid.status === 'finalized') && (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
+            <h2 className="text-lg font-bold font-mono text-white mb-3">⚡ EXP Rewards</h2>
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: '🥇 1st', exp: raid.exp_reward * 3, mult: '3×' },
+                { label: '🥈 2nd', exp: raid.exp_reward * 2, mult: '2×' },
+                { label: '🥉 3rd', exp: Math.floor(raid.exp_reward * 1.5), mult: '1.5×' },
+                { label: '🏰 Join', exp: raid.exp_reward, mult: '1×' },
+              ].map(t => (
+                <div key={t.label} className="text-center p-3 bg-slate-900/50 rounded-xl border border-slate-700">
+                  <p className="text-sm font-mono">{t.label}</p>
+                  <p className="text-lg font-black font-mono text-amber-400">{t.exp.toLocaleString()}</p>
+                  <p className="text-xs font-mono text-slate-500">{t.mult}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Description */}
         {raid.description && (
           <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6">
             <h2 className="text-lg font-bold font-mono text-white mb-3">📋 Mission Brief</h2>
             <p className="text-slate-300 font-mono text-sm whitespace-pre-wrap leading-relaxed">{raid.description}</p>
+          </div>
+        )}
+
+        {/* Judging Banner */}
+        {raid.status === 'judging' && (
+          <div className="text-center text-orange-400 font-mono bg-orange-500/10 border-2 border-orange-500/30 rounded-2xl px-6 py-8">
+            <p className="text-3xl mb-3">⚖️</p>
+            <p className="text-lg font-bold">Results Pending</p>
+            <p className="text-sm text-orange-300/70 mt-1">Judges are evaluating submissions. Results will be announced soon.</p>
+          </div>
+        )}
+
+        {/* Finalized - User Guild Result */}
+        {isFinalized && userGuildExpAwarded !== null && (
+          <div className="text-center font-mono bg-green-500/10 border-2 border-green-500/30 rounded-2xl px-6 py-8">
+            <p className="text-3xl mb-3">{userGuildPlacement ? rankMedal[userGuildPlacement] : '🏰'}</p>
+            <p className="text-lg font-bold text-green-400">
+              {userGuildPlacement ? `Your guild placed ${placementLabel[userGuildPlacement]}!` : 'Your guild participated!'}
+            </p>
+            <p className="text-2xl font-black text-amber-400 mt-2">+{userGuildExpAwarded.toLocaleString()} EXP</p>
+            <p className="text-xs text-slate-400 mt-1">Awarded to all guild members</p>
           </div>
         )}
 
@@ -206,41 +266,59 @@ export default function RaidDetail({
 
         {/* Submissions / Leaderboard */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold font-mono text-white">🏆 Submissions</h2>
+          <h2 className="text-xl font-bold font-mono text-white">{isFinalized ? '🏆 Final Results' : '🏆 Submissions'}</h2>
           {submissions.length === 0 ? (
             <div className="text-center py-12 text-slate-500 font-mono border-2 border-dashed border-slate-700 rounded-2xl">
               No submissions yet.
             </div>
           ) : (
             <div className="space-y-3">
-              {submissions.map((s, i) => (
-                <div key={s.id} className={`flex items-center gap-4 p-4 border-2 rounded-2xl transition-all ${
-                  i === 0 && raid.status === 'ended' ? 'border-amber-400/40 bg-amber-500/5' :
-                  'border-slate-700/50 bg-slate-800/50'
-                }`}>
-                  <div className="w-10 text-center font-mono font-black text-lg shrink-0">
-                    {rankMedal[i + 1] || <span className="text-slate-500">{i + 1}</span>}
+              {submissions.map((s, i) => {
+                const placement = isFinalized ? s.placement : null
+                const expEarned = isFinalized
+                  ? Math.floor(raid.exp_reward * (placement ? placementMultiplier[placement] : 1))
+                  : null
+
+                return (
+                  <div key={s.id} className={`flex items-center gap-4 p-4 border-2 rounded-2xl transition-all ${
+                    isFinalized && placement === 1 ? 'border-amber-400/40 bg-amber-500/5 shadow-[0_0_15px_rgba(245,158,11,0.1)]' :
+                    isFinalized && placement === 2 ? 'border-slate-300/30 bg-slate-300/5' :
+                    isFinalized && placement === 3 ? 'border-orange-700/30 bg-orange-700/5' :
+                    'border-slate-700/50 bg-slate-800/50'
+                  }`}>
+                    <div className="w-10 text-center font-mono font-black text-lg shrink-0">
+                      {isFinalized && placement ? rankMedal[placement] : (
+                        rankMedal[i + 1] || <span className="text-slate-500">{i + 1}</span>
+                      )}
+                    </div>
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 overflow-hidden shrink-0">
+                      {s.guild_banner ? (
+                        <img src={s.guild_banner} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-lg">🏰</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <a href={`/guilds/${s.guild_id}`} className="font-bold font-mono text-white hover:text-purple-300 transition-colors">{s.guild_name}</a>
+                        {isFinalized && placement && (
+                          <span className="text-xs font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            {placementLabel[placement]}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 font-mono truncate">
+                        <a href={s.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">{s.github_url}</a>
+                      </p>
+                      {s.review_notes && <p className="text-xs text-slate-400 font-mono mt-1 italic">&ldquo;{s.review_notes}&rdquo;</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-black font-mono text-lg text-amber-400">{s.score}</p>
+                      <p className="text-xs font-mono text-slate-500">{isFinalized && expEarned ? `+${expEarned.toLocaleString()} EXP` : 'pts'}</p>
+                    </div>
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 overflow-hidden shrink-0">
-                    {s.guild_banner ? (
-                      <img src={s.guild_banner} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-lg">🏰</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <a href={`/guilds/${s.guild_id}`} className="font-bold font-mono text-white hover:text-purple-300 transition-colors">{s.guild_name}</a>
-                    <p className="text-xs text-slate-500 font-mono truncate">
-                      <a href={s.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">{s.github_url}</a>
-                    </p>
-                    {s.review_notes && <p className="text-xs text-slate-400 font-mono mt-1 italic">&ldquo;{s.review_notes}&rdquo;</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-black font-mono text-lg text-amber-400">{s.score}</p>
-                    <p className="text-xs font-mono text-slate-500">pts</p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

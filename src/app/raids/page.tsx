@@ -27,7 +27,8 @@ export default async function RaidsPage() {
     team_count: (r.hackathon_submissions || []).length,
     status: !r.is_active ? 'inactive' as const
       : (r.start_date && new Date(r.start_date) > now) ? 'upcoming' as const
-      : (r.end_date && new Date(r.end_date) < now) ? 'ended' as const
+      : r.is_finalized ? 'finalized' as const
+      : (r.end_date && new Date(r.end_date) < now) ? 'judging' as const
       : 'active' as const,
   }))
 

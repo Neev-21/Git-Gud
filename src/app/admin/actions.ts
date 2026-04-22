@@ -209,3 +209,85 @@ export async function scoreRaidSubmission(submissionId: string, score: number, r
   revalidatePath('/admin')
   revalidatePath('/raids')
 }
+
+const PLACEMENT_MULTIPLIERS: Record<number, number> = { 1: 3, 2: 2, 3: 1.5 }
+const PARTICIPANT_MULTIPLIER = 1
+
+export async function finalizeRaid(raidId: string) {
+  const { supabase } = await requireAdmin()
+
+  // 1. Verify raid exists and is not finalized
+  const { data: raid } = await supabase
+    .from('hackathons')
+    .select('id, exp_reward, is_finalized')
+    .eq('id', raidId)
+    .single()
+
+  if (!raid) throw new Error('Raid not found')
+  if (raid.is_finalized) throw new Error('Raid already finalized')
+
+  // 2. Get all submissions sorted by score DESC
+  const { data: submissions } = await supabase
+    .from('hackathon_submissions')
+    .select('id, guild_id, score')
+    .eq('hackathon_id', raidId)
+    .order('score', { ascending: false })
+
+  if (!submissions || submissions.length === 0) throw new Error('No submissions to finalize')
+
+  // 3. Assign placements and calculate EXP per guild
+  const guildExpMap: Map<string, number> = new Map()
+
+  for (let i = 0; i < submissions.length; i++) {
+    const sub = submissions[i]
+    const placement = i < 3 ? i + 1 : null
+    const multiplier = placement ? PLACEMENT_MULTIPLIERS[placement] : PARTICIPANT_MULTIPLIER
+    const expAwarded = Math.floor(raid.exp_reward * multiplier)
+
+    // Update submission with placement
+    if (placement) {
+      await supabase
+        .from('hackathon_submissions')
+        .update({ placement })
+        .eq('id', sub.id)
+    }
+
+    guildExpMap.set(sub.guild_id, expAwarded)
+  }
+
+  // 4. Distribute EXP to all members of each participating guild
+  for (const [guildId, expAmount] of guildExpMap) {
+    const { data: members } = await supabase
+      .from('guild_members')
+      .select('user_id')
+      .eq('guild_id', guildId)
+
+    if (members && members.length > 0) {
+      for (const member of members) {
+        // Increment EXP
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('exp')
+          .eq('id', member.user_id)
+          .single()
+
+        if (profile) {
+          await supabase
+            .from('profiles')
+            .update({ exp: profile.exp + expAmount })
+            .eq('id', member.user_id)
+        }
+      }
+    }
+  }
+
+  // 5. Mark raid as finalized
+  await supabase
+    .from('hackathons')
+    .update({ is_finalized: true })
+    .eq('id', raidId)
+
+  revalidatePath('/admin')
+  revalidatePath('/raids')
+  revalidatePath(`/raids/${raidId}`)
+}
