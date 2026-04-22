@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge, createRaid, deleteRaid, scoreRaidSubmission, finalizeRaid } from './actions'
+import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge, createRaid, deleteRaid, closeRaid, scoreRaidSubmission, finalizeRaid } from './actions'
 
 type Quest = {
   id: string
@@ -564,19 +564,57 @@ export default function AdminDashboard({
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold font-mono text-white text-lg">{r.title}</h3>
-                          {r.is_finalized && (
-                            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">✓ Finalized</span>
-                          )}
+                          {(() => {
+                            const now = new Date()
+                            const ended = r.end_date && new Date(r.end_date) < now
+                            if (r.is_finalized) return <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/30">✓ Finalized</span>
+                            if (ended) return <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/30">⚖️ Judging</span>
+                            if (r.start_date && new Date(r.start_date) > now) return <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">⏳ Upcoming</span>
+                            return <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/30">🔥 Active</span>
+                          })()}
                         </div>
-                        <p className="text-xs text-slate-500 font-mono">
+                        <p className="text-xs text-slate-500 font-mono mt-1">
                           ⚡ {r.exp_reward} EXP • 🏰 {r.hackathon_submissions.length}{r.max_teams ? `/${r.max_teams}` : ''} teams
                           {r.start_date && ` • ${new Date(r.start_date).toLocaleDateString()}`}
                           {r.end_date && ` → ${new Date(r.end_date).toLocaleDateString()}`}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {/* Finalize Button — only if ended, not finalized, has submissions */}
-                        {!r.is_finalized && r.end_date && new Date(r.end_date) < new Date() && r.hackathon_submissions.length > 0 && (
+                      <button
+                        onClick={async () => {
+                          if (confirm(`Delete raid "${r.title}"?`)) {
+                            setIsLoading(true)
+                            await deleteRaid(r.id)
+                            setIsLoading(false)
+                          }
+                        }}
+                        disabled={isLoading || r.is_finalized}
+                        className="px-3 py-1.5 text-xs font-mono font-bold text-red-400 hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-30"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+
+                    {/* Lifecycle Action Bar */}
+                    {!r.is_finalized && (
+                      <div className="flex gap-3">
+                        {/* Close Submissions — only if raid hasn't ended yet */}
+                        {(!r.end_date || new Date(r.end_date) > new Date()) && (
+                          <button
+                            onClick={async () => {
+                              if (confirm(`Close submissions for "${r.title}"? This will end the submission period immediately.`)) {
+                                setIsLoading(true)
+                                await closeRaid(r.id)
+                                setIsLoading(false)
+                              }
+                            }}
+                            disabled={isLoading}
+                            className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all font-mono text-sm shadow-[0_0_12px_rgba(234,88,12,0.3)]"
+                          >
+                            🔒 Close Submissions
+                          </button>
+                        )}
+                        {/* Finalize & Release EXP — only if ended and has submissions */}
+                        {r.end_date && new Date(r.end_date) < new Date() && r.hackathon_submissions.length > 0 && (
                           <button
                             onClick={async () => {
                               const sorted = [...r.hackathon_submissions].sort((a, b) => b.score - a.score)
@@ -586,33 +624,20 @@ export default function AdminDashboard({
                                 return `${medal} ${s.guilds?.name || 'Unknown'}: ${s.score}pts → ${Math.floor(r.exp_reward * mult)} EXP`
                               }).join('\n')
                               const rest = sorted.length > 3 ? `\n+ ${sorted.length - 3} more guilds: ${r.exp_reward} EXP each` : ''
-                              if (confirm(`Finalize "${r.title}"?\n\n${preview}${rest}\n\nEXP will be distributed to ALL guild members. This cannot be undone.`)) {
+                              if (confirm(`Finalize "${r.title}" & Release EXP?\n\n${preview}${rest}\n\nEXP will be distributed to ALL guild members. This cannot be undone.`)) {
                                 setIsLoading(true)
                                 await finalizeRaid(r.id)
                                 setIsLoading(false)
                               }
                             }}
                             disabled={isLoading}
-                            className="px-4 py-2 text-xs font-mono font-bold border border-green-600 text-green-400 rounded-lg hover:bg-green-900/30 transition-colors"
+                            className="flex-1 py-3 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all font-mono text-sm shadow-[0_0_12px_rgba(22,163,74,0.3)]"
                           >
-                            🏆 Finalize
+                            🏆 Finalize & Release EXP
                           </button>
                         )}
-                        <button
-                          onClick={async () => {
-                            if (confirm(`Delete raid "${r.title}"?`)) {
-                              setIsLoading(true)
-                              await deleteRaid(r.id)
-                              setIsLoading(false)
-                            }
-                          }}
-                          disabled={isLoading || r.is_finalized}
-                          className="px-4 py-2 text-xs font-mono font-bold border border-red-800 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors disabled:opacity-30"
-                        >
-                          Delete
-                        </button>
                       </div>
-                    </div>
+                    )}
                     {r.hackathon_submissions.length > 0 && (
                       <div className="space-y-2 border-t border-slate-700 pt-4">
                         <p className="text-sm font-mono font-bold text-slate-400">{r.is_finalized ? 'Results:' : 'Submissions:'}</p>

@@ -197,6 +197,19 @@ export async function deleteRaid(raidId: string) {
   revalidatePath('/raids')
 }
 
+export async function closeRaid(raidId: string) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase
+    .from('hackathons')
+    .update({ end_date: new Date().toISOString() })
+    .eq('id', raidId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+  revalidatePath('/raids')
+}
+
 export async function scoreRaidSubmission(submissionId: string, score: number, reviewNotes: string) {
   const { supabase } = await requireAdmin()
 
