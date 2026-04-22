@@ -31,7 +31,7 @@ export default async function AdminPage() {
   // Fetch all badges for the quest form dropdown
   const { data: badges } = await supabase
     .from('badges')
-    .select('id, name')
+    .select('id, name, image_url')
     .order('name')
 
   // Fetch all users for admin management

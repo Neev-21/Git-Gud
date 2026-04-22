@@ -21,10 +21,18 @@ type BadgeData = {
   id: string
   name: string
   description: string
+  image_url: string | null
   earnedAt: string
 }
 
-export default function ProfileClient({ user, badges = [] }: { user: UserData; badges?: BadgeData[] }) {
+type GuildData = {
+  id: string
+  name: string
+  banner_url: string | null
+  role: string
+} | null
+
+export default function ProfileClient({ user, badges = [], guild = null }: { user: UserData; badges?: BadgeData[]; guild?: GuildData }) {
   const [isResumeView, setIsResumeView] = useState(false)
   const router = useRouter()
 
@@ -60,6 +68,26 @@ export default function ProfileClient({ user, badges = [] }: { user: UserData; b
               }`}
             >
               ⚔️ Tavern
+            </a>
+            <a
+              href="/guilds"
+              className={`px-4 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
+                isResumeView
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-purple-400 border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20'
+              }`}
+            >
+              🏰 Guilds
+            </a>
+            <a
+              href="/leaderboard"
+              className={`px-4 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
+                isResumeView
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20'
+              }`}
+            >
+              🏆 Ranks
             </a>
             {user.isAdmin && (
               <a
@@ -200,7 +228,13 @@ export default function ProfileClient({ user, badges = [] }: { user: UserData; b
                   <div className="space-y-3">
                     {badges.map(badge => (
                       <div key={badge.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-700">
-                        <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-lg flex items-center justify-center text-lg">🏅</div>
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg overflow-hidden bg-amber-500/10 border border-amber-500/20">
+                          {badge.image_url ? (
+                            <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-amber-400">🏅</span>
+                          )}
+                        </div>
                         <div>
                           <p className="font-mono font-bold text-white text-sm">{badge.name}</p>
                           {badge.description && <p className="font-mono text-slate-500 text-xs">{badge.description}</p>}
@@ -222,10 +256,31 @@ export default function ProfileClient({ user, badges = [] }: { user: UserData; b
                   </div>
                   <h2 className="text-2xl font-bold font-mono text-white">Guild Affiliation</h2>
                 </div>
-                <div className="text-slate-400 text-center py-12 border-2 border-dashed border-slate-700 rounded-xl font-mono text-sm">
-                  You are a lone wolf.
-                  <br />Join a guild to earn party bonuses!
-                </div>
+                {guild ? (
+                  <a
+                    href={`/guilds/${guild.id}`}
+                    className="flex items-center gap-4 p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl hover:bg-purple-500/10 transition-colors"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 overflow-hidden shrink-0">
+                      {guild.banner_url ? (
+                        <img src={guild.banner_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">🏰</div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-mono font-bold text-white">{guild.name}</p>
+                      <p className="font-mono text-xs text-purple-400">
+                        {guild.role === 'leader' ? '👑 Guild Owner' : '⚔️ Member'}
+                      </p>
+                    </div>
+                  </a>
+                ) : (
+                  <div className="text-slate-400 text-center py-12 border-2 border-dashed border-slate-700 rounded-xl font-mono text-sm">
+                    You are a lone wolf.
+                    <br /><a href="/guilds" className="text-purple-400 hover:underline">Browse guilds</a> to find your crew!
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin } from './actions'
+import { createQuest, updateQuestStatus, deleteQuest, reviewSubmission, toggleUserAdmin, createBadge, deleteBadge } from './actions'
 
 type Quest = {
   id: string
@@ -29,7 +29,7 @@ type Submission = {
   quests: { title: string; exp_reward: number } | null
 }
 
-type Badge = { id: string; name: string }
+type Badge = { id: string; name: string; image_url: string | null }
 
 type UserProfile = {
   id: string
@@ -54,7 +54,7 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: 'bg-red-500/10 text-red-400 border-red-500/30',
 }
 
-type Tab = 'quests' | 'submissions' | 'users'
+type Tab = 'quests' | 'submissions' | 'badges' | 'users'
 
 export default function AdminDashboard({
   quests,
@@ -69,11 +69,14 @@ export default function AdminDashboard({
 }) {
   const [activeTab, setActiveTab] = useState<Tab>('quests')
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showBadgeForm, setShowBadgeForm] = useState(false)
+  const [badgePreview, setBadgePreview] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'quests', label: 'Quests', count: quests.length },
     { key: 'submissions', label: 'Submissions', count: submissions.filter(s => s.status === 'submitted').length },
+    { key: 'badges', label: 'Badges', count: badges.length },
     { key: 'users', label: 'Users', count: users.length },
   ]
 
@@ -323,6 +326,145 @@ export default function AdminDashboard({
                       Submitted {new Date(sub.created_at).toLocaleDateString()}
                       {sub.reviewed_at && ` • Reviewed ${new Date(sub.reviewed_at).toLocaleDateString()}`}
                     </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        {/* ─── BADGES TAB ─── */}
+        {activeTab === 'badges' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold font-mono">Badge Management</h2>
+              <button
+                onClick={() => setShowBadgeForm(!showBadgeForm)}
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition-all hover:scale-105 shadow-[0_0_15px_rgba(245,158,11,0.3)] font-mono text-sm"
+              >
+                {showBadgeForm ? '✕ Cancel' : '+ New Badge'}
+              </button>
+            </div>
+
+            {showBadgeForm && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  setIsLoading(true)
+                  const form = e.currentTarget
+                  const formData = new FormData(form)
+                  const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]')
+                  const file = fileInput?.files?.[0]
+
+                  if (file) {
+                    const { createClient } = await import('@/utils/supabase/client')
+                    const supabase = createClient()
+                    const ext = file.name.split('.').pop()
+                    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+                    const { error: uploadError } = await supabase.storage
+                      .from('badges')
+                      .upload(fileName, file)
+
+                    if (uploadError) {
+                      alert('Failed to upload image: ' + uploadError.message)
+                      setIsLoading(false)
+                      return
+                    }
+
+                    const { data: urlData } = supabase.storage
+                      .from('badges')
+                      .getPublicUrl(fileName)
+
+                    formData.set('image_url', urlData.publicUrl)
+                  }
+
+                  await createBadge(formData)
+                  setShowBadgeForm(false)
+                  setBadgePreview(null)
+                  setIsLoading(false)
+                }}
+                className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 space-y-6"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Badge Name</label>
+                    <input name="name" required className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors font-mono" placeholder="First Blood" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Badge Image</label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex-1 cursor-pointer">
+                        <div className="w-full bg-slate-900 border border-dashed border-slate-600 hover:border-amber-500 rounded-xl px-4 py-3 text-slate-400 hover:text-amber-400 transition-colors font-mono text-sm text-center">
+                          {badgePreview ? '✓ Image selected' : 'Click to upload...'}
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onload = (ev) => setBadgePreview(ev.target?.result as string)
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                      </label>
+                      {badgePreview && (
+                        <img src={badgePreview} alt="Preview" className="w-14 h-14 rounded-xl border-2 border-amber-500/30 object-cover" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-mono font-bold text-slate-400 uppercase tracking-wider">Description</label>
+                    <input name="description" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors font-mono" placeholder="Awarded for completing your first quest" />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all font-mono text-sm uppercase tracking-wider"
+                >
+                  {isLoading ? 'Uploading...' : '🏅 Create Badge'}
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-3">
+              {badges.length === 0 ? (
+                <div className="text-center py-16 text-slate-500 font-mono border-2 border-dashed border-slate-700 rounded-2xl">
+                  No badges yet. Create your first one!
+                </div>
+              ) : (
+                badges.map(b => (
+                  <div key={b.id} className="flex items-center justify-between gap-4 p-5 bg-slate-800/50 backdrop-blur-sm border border-amber-500/20 rounded-2xl hover:bg-slate-800/80 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl border border-amber-500/20 flex items-center justify-center text-2xl overflow-hidden bg-amber-500/10">
+                        {b.image_url ? (
+                          <img src={b.image_url} alt={b.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-amber-400">🏅</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-bold font-mono text-white">{b.name}</p>
+                        <p className="text-xs text-slate-500 font-mono">ID: {b.id.slice(0, 8)}...</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Delete badge "${b.name}"? This cannot be undone.`)) {
+                          setIsLoading(true)
+                          await deleteBadge(b.id)
+                          setIsLoading(false)
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="px-4 py-2 text-xs font-mono font-bold border border-red-800 text-red-400 rounded-lg hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))
               )}

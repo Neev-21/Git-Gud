@@ -139,3 +139,29 @@ export async function toggleUserAdmin(userId: string, isAdmin: boolean) {
   if (error) throw new Error(error.message)
   revalidatePath('/admin')
 }
+
+// ─── Badge CRUD ───
+export async function createBadge(formData: FormData) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase.from('badges').insert({
+    name: formData.get('name') as string,
+    description: (formData.get('description') as string) || null,
+    image_url: (formData.get('image_url') as string) || null,
+  })
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+}
+
+export async function deleteBadge(badgeId: string) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase
+    .from('badges')
+    .delete()
+    .eq('id', badgeId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin')
+}

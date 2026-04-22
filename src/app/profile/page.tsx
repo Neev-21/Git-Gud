@@ -41,8 +41,25 @@ export default async function ProfilePage() {
     id: ub.badges?.id,
     name: ub.badges?.name || 'Unknown',
     description: ub.badges?.description || '',
+    image_url: ub.badges?.image_url || null,
     earnedAt: ub.earned_at,
   }))
 
-  return <ProfileClient user={userData} badges={earnedBadges} />
+  // Fetch guild membership
+  const { data: guildMembership } = await supabase
+    .from('guild_members')
+    .select('role, guilds:guild_id(id, name, banner_url)')
+    .eq('user_id', user.id)
+    .single()
+
+  const guildData = guildMembership
+    ? {
+        id: (guildMembership.guilds as any)?.id,
+        name: (guildMembership.guilds as any)?.name || 'Unknown',
+        banner_url: (guildMembership.guilds as any)?.banner_url || null,
+        role: guildMembership.role,
+      }
+    : null
+
+  return <ProfileClient user={userData} badges={earnedBadges} guild={guildData} />
 }
