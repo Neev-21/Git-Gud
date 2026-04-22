@@ -31,14 +31,13 @@ export async function fetchUserRecentActivity(username: string): Promise<GitHubE
 
     for (const event of events) {
       if (event.type === 'PushEvent') {
-        const commits = event.payload.commits || [];
-        for (const commit of commits) {
-          processedEvents.push({
-            id: commit.sha, // use commit sha as unique ID
-            type: 'commit',
-            date: event.created_at
-          });
-        }
+        // We count the PushEvent itself as 1 "commit" action for EXP purposes,
+        // because the .commits array is sometimes empty or omitted in the public events API.
+        processedEvents.push({
+          id: event.id, // use the event ID as unique identifier
+          type: 'commit',
+          date: event.created_at
+        });
       } else if (event.type === 'PullRequestEvent') {
         if (event.payload.action === 'opened') {
           processedEvents.push({

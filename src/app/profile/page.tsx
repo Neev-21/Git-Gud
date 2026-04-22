@@ -20,6 +20,12 @@ export default async function ProfilePage() {
     redirect('/onboarding')
   }
 
+  // Fetch user's earned badges
+  const { data: userBadges } = await supabase
+    .from('user_badges')
+    .select('*, badges:badge_id(id, name, description, image_url)')
+    .eq('user_id', user.id)
+
   const userData = {
     id: user.id,
     email: user.email,
@@ -31,5 +37,12 @@ export default async function ProfilePage() {
     isAdmin: profile.is_admin || false,
   }
 
-  return <ProfileClient user={userData} />
+  const earnedBadges = (userBadges || []).map((ub: any) => ({
+    id: ub.badges?.id,
+    name: ub.badges?.name || 'Unknown',
+    description: ub.badges?.description || '',
+    earnedAt: ub.earned_at,
+  }))
+
+  return <ProfileClient user={userData} badges={earnedBadges} />
 }

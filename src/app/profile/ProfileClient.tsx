@@ -17,7 +17,14 @@ type UserData = {
   isAdmin: boolean
 }
 
-export default function ProfileClient({ user }: { user: UserData }) {
+type BadgeData = {
+  id: string
+  name: string
+  description: string
+  earnedAt: string
+}
+
+export default function ProfileClient({ user, badges = [] }: { user: UserData; badges?: BadgeData[] }) {
   const [isResumeView, setIsResumeView] = useState(false)
   const router = useRouter()
 
@@ -43,7 +50,29 @@ export default function ProfileClient({ user }: { user: UserData }) {
             <span className="text-blue-500">Gud</span>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <a
+              href="/tavern"
+              className={`px-4 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
+                isResumeView
+                  ? 'text-slate-600 hover:bg-slate-100'
+                  : 'text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20'
+              }`}
+            >
+              ⚔️ Tavern
+            </a>
+            {user.isAdmin && (
+              <a
+                href="/admin"
+                className={`px-4 py-2 rounded-lg font-mono font-bold text-sm transition-all ${
+                  isResumeView
+                    ? 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-400 border border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                Admin
+              </a>
+            )}
             <button
               onClick={() => setIsResumeView(!isResumeView)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold transition-all duration-300 ${
@@ -167,10 +196,24 @@ export default function ProfileClient({ user }: { user: UserData }) {
                   </div>
                   <h2 className="text-2xl font-bold font-mono text-white">Achievements</h2>
                 </div>
-                <div className="text-slate-400 text-center py-12 border-2 border-dashed border-slate-700 rounded-xl font-mono text-sm">
-                  No achievements yet.
-                  <br />Start committing code to earn some!
-                </div>
+                {badges.length > 0 ? (
+                  <div className="space-y-3">
+                    {badges.map(badge => (
+                      <div key={badge.id} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl border border-slate-700">
+                        <div className="w-10 h-10 bg-amber-500/10 text-amber-400 rounded-lg flex items-center justify-center text-lg">🏅</div>
+                        <div>
+                          <p className="font-mono font-bold text-white text-sm">{badge.name}</p>
+                          {badge.description && <p className="font-mono text-slate-500 text-xs">{badge.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-slate-400 text-center py-12 border-2 border-dashed border-slate-700 rounded-xl font-mono text-sm">
+                    No achievements yet.
+                    <br />Complete quests at the <a href="/tavern" className="text-amber-400 hover:underline">Tavern</a> to earn badges!
+                  </div>
+                )}
               </div>
               <div className="p-8 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-[2rem] hover:bg-slate-800/80 transition-colors">
                 <div className="flex items-center gap-4 mb-6">
